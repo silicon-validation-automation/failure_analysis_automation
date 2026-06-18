@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Failure Analysis Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--navy:#1F3864;--red:#e74c3c;--bg:#f0f4f8;--card:#fff;--text:#2c3e50;--mono:#2d3436}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+    header{background:var(--navy);color:#fff;padding:24px 40px;display:flex;align-items:center;justify-content:space-between}
+    header h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+    header .meta{font-size:12px;opacity:.75;text-align:right}
+    .container{max-width:1400px;margin:0 auto;padding:24px 32px}
+    .cards{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+    .card{background:var(--card);border-radius:10px;padding:20px 28px;flex:1;min-width:160px;
+           box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .card-val{font-size:36px;font-weight:800;line-height:1}
+    .card-lbl{font-size:12px;color:#7f8c8d;margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .charts-row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:28px}
+    .chart-box{background:var(--card);border-radius:10px;padding:20px;flex:1;min-width:300px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .chart-box h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:14px;text-transform:uppercase;letter-spacing:.4px}
+    .table-wrap{background:var(--card);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden}
+    .table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #ecf0f1}
+    .table-header h3{font-size:14px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px}
+    input#search{border:1px solid #dfe6e9;border-radius:6px;padding:7px 14px;font-size:13px;width:240px;outline:none}
+    input#search:focus{border-color:#3498db}
+    table{width:100%;border-collapse:collapse}
+    thead{background:var(--navy)}
+    thead th{color:#fff;padding:11px 14px;text-align:left;font-size:12px;font-weight:700;letter-spacing:.4px;white-space:nowrap}
+    tbody tr{border-bottom:1px solid #f0f0f0;transition:background .15s}
+    tbody tr:hover{background:#eaf4fb}
+    tbody td{padding:10px 14px;vertical-align:middle}
+    .mono{font-family:'Consolas','Courier New',monospace}
+    .small{font-size:12px;color:#636e72}
+    .center{text-align:center}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap}
+    footer{text-align:center;padding:20px;font-size:12px;color:#b2bec3}
+    @media(max-width:700px){.charts-row{flex-direction:column}.cards{flex-direction:column}}
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🔍 Failure Analysis Report</h1>
+    <div style="font-size:13px;opacity:.8;margin-top:4px">Source: <code>sample_logs/</code></div>
+  </div>
+  <div class="meta">
+    Generated: 2026-05-05 13:47:29<br>
+    12 failures · 2 log files
+  </div>
+</header>
+
+<div class="container">
+  <!-- KPI Cards -->
+  <div class="cards">
+        <div class="card" style="border-top:4px solid #3498db">
+          <div class="card-val" style="color:#3498db">2</div>
+          <div class="card-lbl">📁 Logs Scanned</div>
+        </div>
+        <div class="card" style="border-top:4px solid #e74c3c">
+          <div class="card-val" style="color:#e74c3c">12</div>
+          <div class="card-lbl">❌ Total Failures</div>
+        </div>
+        <div class="card" style="border-top:4px solid #9b59b6">
+          <div class="card-val" style="color:#9b59b6">12</div>
+          <div class="card-lbl">🔬 Unique Tests</div>
+        </div>
+        <div class="card" style="border-top:4px solid #e67e22">
+          <div class="card-val" style="color:#e67e22">7</div>
+          <div class="card-lbl">🗂️ Categories</div>
+        </div></div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-box" style="max-width:420px">
+      <h3>Failures by Category</h3>
+      <canvas id="catChart" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Failures per Log File</h3>
+      <canvas id="logChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>All Failures (12)</h3>
+      <input id="search" type="text" placeholder="🔍  Filter tests…" oninput="filterTable(this.value)"/>
+    </div>
+    <table id="failTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Test Name</th><th>Category</th><th>Reason / Message</th>
+          <th>Log File</th><th>Line</th><th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">1</td>
+          <td><strong>api_login</strong></td>
+          <td><span class="badge" style="background:#9b59b6">Connection</span></td>
+          <td class="mono small">Connection refused on port 8080</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">3</td>
+          <td class="mono small">2024-03-10 09:01:12</td>
+        </tr>
+        <tr>
+          <td class="mono">2</td>
+          <td><strong>fetch_orders</strong></td>
+          <td><span class="badge" style="background:#e67e22">Timeout</span></td>
+          <td class="mono small">Timeout after 30s waiting for response</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">5</td>
+          <td class="mono small">2024-03-10 09:01:18</td>
+        </tr>
+        <tr>
+          <td class="mono">3</td>
+          <td><strong>submit_payment</strong></td>
+          <td><span class="badge" style="background:#e74c3c">Assertion</span></td>
+          <td class="mono small">AssertionError: expected 200 but got 500</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">6</td>
+          <td class="mono small">2024-03-10 09:01:21</td>
+        </tr>
+        <tr>
+          <td class="mono">4</td>
+          <td><strong>export_csv</strong></td>
+          <td><span class="badge" style="background:#d35400">Permission</span></td>
+          <td class="mono small">Permission denied: /var/reports/output.csv</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">8</td>
+          <td class="mono small">2024-03-10 09:01:26</td>
+        </tr>
+        <tr>
+          <td class="mono">5</td>
+          <td><strong>delete_account</strong></td>
+          <td><span class="badge" style="background:#c0392b">NullRef</span></td>
+          <td class="mono small">NullPointerException in UserService.java:142</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">10</td>
+          <td class="mono small">2024-03-10 09:01:33</td>
+        </tr>
+        <tr>
+          <td class="mono">6</td>
+          <td><strong>bulk_import</strong></td>
+          <td><span class="badge" style="background:#8e44ad">Memory</span></td>
+          <td class="mono small">Out of memory: Java heap space</td>
+          <td class="mono small">integration.log</td>
+          <td class="mono small center">11</td>
+          <td class="mono small">2024-03-10 09:01:35</td>
+        </tr>
+        <tr>
+          <td class="mono">7</td>
+          <td><strong>tests/test_auth.py::test_token_expiry</strong></td>
+          <td><span class="badge" style="background:#7f8c8d">Other</span></td>
+          <td class="mono small">—</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">2</td>
+          <td class="mono small"></td>
+        </tr>
+        <tr>
+          <td class="mono">8</td>
+          <td><strong>tests/test_db.py::test_connection_pool</strong></td>
+          <td><span class="badge" style="background:#9b59b6">Connection</span></td>
+          <td class="mono small">ConnectionError: socket closed</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">3</td>
+          <td class="mono small"></td>
+        </tr>
+        <tr>
+          <td class="mono">9</td>
+          <td><strong>tests/test_files.py::test_read_config</strong></td>
+          <td><span class="badge" style="background:#7f8c8d">Other</span></td>
+          <td class="mono small">FileNotFoundError: config.yaml not found</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">5</td>
+          <td class="mono small"></td>
+        </tr>
+        <tr>
+          <td class="mono">10</td>
+          <td><strong>tests/test_auth.py::test_refresh_token</strong></td>
+          <td><span class="badge" style="background:#e74c3c">Assertion</span></td>
+          <td class="mono small">AssertionError: token mismatch</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">6</td>
+          <td class="mono small"></td>
+        </tr>
+        <tr>
+          <td class="mono">11</td>
+          <td><strong>test_rate_limiter</strong></td>
+          <td><span class="badge" style="background:#e67e22">Timeout</span></td>
+          <td class="mono small">Timeout exceeded 5000ms</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">7</td>
+          <td class="mono small">2024-03-10 10:15:44</td>
+        </tr>
+        <tr>
+          <td class="mono">12</td>
+          <td><strong>test_cache_eviction</strong></td>
+          <td><span class="badge" style="background:#e74c3c">Assertion</span></td>
+          <td class="mono small">AssertionError: cache size expected 100 got 0</td>
+          <td class="mono small">unit_tests.log</td>
+          <td class="mono small center">8</td>
+          <td class="mono small">2024-03-10 10:15:46</td>
+        </tr></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>failure_analyzer.py — Auto-generated on 2026-05-05 13:47:29</footer>
+
+<script>
+// Category doughnut
+const catData = {"Connection": 2, "Timeout": 2, "Assertion": 3, "Permission": 1, "NullRef": 1, "Memory": 1, "Other": 2};
+new Chart(document.getElementById('catChart'), {
+  type:'doughnut',
+  data:{
+    labels: Object.keys(catData),
+    datasets:[{
+      data: Object.values(catData),
+      backgroundColor:['#e74c3c','#e67e22','#f1c40f','#2ecc71','#3498db','#9b59b6','#1abc9c','#7f8c8d'],
+      borderWidth:2,borderColor:'#fff'
+    }]
+  },
+  options:{plugins:{legend:{position:'right',labels:{font:{size:12}}}}}
+});
+
+// Log-file bar chart
+new Chart(document.getElementById('logChart'), {
+  type:'bar',
+  data:{
+    labels: ["integration.log", "unit_tests.log"],
+    datasets:[{
+      label:'Failures',
+      data: [6, 6],
+      backgroundColor:'rgba(52,152,219,.75)',
+      borderColor:'#2980b9',
+      borderWidth:1,
+      borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{maxRotation:40,font:{size:11}}}}
+  }
+});
+
+// Live search
+function filterTable(q) {
+  const rows = document.querySelectorAll('#failTable tbody tr');
+  q = q.toLowerCase();
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
